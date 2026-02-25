@@ -1,0 +1,266 @@
+import React from 'react';
+import { usePlanner } from '../context/PlannerContext';
+import { motion, AnimatePresence } from 'framer-motion';
+import { MoreHorizontal, Plus, Clock, AlertCircle, Layers, User } from 'lucide-react';
+
+const Board = () => {
+    const { activeProject, activeObjective, updateTaskStatus, addTask, users, assignTask, activeUserId, updateTask, deleteTask } = usePlanner();
+    const [assigningTaskId, setAssigningTaskId] = React.useState(null);
+
+    if (!activeProject) return (
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', fontSize: '1.2rem', fontWeight: 500 }}>
+            Selecciona un proyecto para comenzar
+        </div>
+    );
+
+    const UserAvatar = ({ userId, size = 24 }) => {
+        const user = users.find(u => u.id === userId);
+        if (!user) return (
+            <div style={{
+                width: `${size}px`, height: `${size}px`, borderRadius: '50%',
+                background: '#27272a', display: 'flex', alignItems: 'center', justifyContent: 'center'
+            }}>
+                <User size={size * 0.6} color="var(--text-secondary)" />
+            </div>
+        );
+
+        return (
+            <div
+                title={user.name}
+                style={{
+                    width: `${size}px`, height: `${size}px`, borderRadius: '50%',
+                    background: user.color, color: '#fff', fontSize: `${size * 0.4}px`,
+                    fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'pointer'
+                }}
+            >
+                {user.initials}
+            </div>
+        );
+    };
+
+    const isShowingAll = !activeObjective;
+    let tasks = isShowingAll
+        ? (activeProject?.objectives || []).flatMap(o => (o.tasks || []).map(t => ({ ...t, objectiveTitle: o.title })))
+        : (activeObjective?.tasks || []);
+
+    if (activeUserId) {
+        tasks = tasks.filter(t => t.assignedTo === activeUserId);
+    }
+
+    const columns = ['To Do', 'In Progress', 'Done'];
+
+    return (
+        <div style={{
+            flex: 1,
+            padding: '2rem',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: '2rem',
+            overflowX: 'auto',
+            backgroundColor: 'rgba(0,0,0,0.2)'
+        }}>
+            {columns.map(column => (
+                <div key={column} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 0.5rem' }}>
+                        <h3 style={{ fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)' }}>
+                            {column} <span style={{ marginLeft: '0.5rem', padding: '2px 8px', borderRadius: '12px', background: 'var(--border-color)', fontSize: '0.75rem' }}>
+                                {tasks.filter(t => t.status === column).length}
+                            </span>
+                        </h3>
+                        <MoreHorizontal size={18} color="var(--text-secondary)" cursor="pointer" />
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        <AnimatePresence>
+                            {tasks
+                                .filter(task => task.status === column)
+                                .map(task => (
+                                    <motion.div
+                                        key={task.id}
+                                        layout
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, scale: 0.95 }}
+                                        className="glass-card"
+                                        style={{ cursor: 'pointer' }}
+                                        onClick={() => {
+                                            const nextStatus = column === 'To Do' ? 'In Progress' : column === 'In Progress' ? 'Done' : 'To Do';
+                                            updateTaskStatus(task.id, nextStatus);
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                                            <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                                                <span style={{
+                                                    fontSize: '0.65rem',
+                                                    fontWeight: 700,
+                                                    padding: '2px 8px',
+                                                    borderRadius: '4px',
+                                                    backgroundColor: task.priority === 'High' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(59, 130, 246, 0.1)',
+                                                    color: task.priority === 'High' ? '#ef4444' : '#3b82f6',
+                                                    textTransform: 'uppercase'
+                                                }}>
+                                                    {task.priority}
+                                                </span>
+                                                <Edit2
+                                                    size={12}
+                                                    style={{ cursor: 'pointer', opacity: 0.5 }}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        const newContent = prompt('Editar texto de la actividad:', task.content);
+                                                        if (newContent) updateTask(task.id, newContent);
+                                                    }}
+                                                />
+                                                <Trash2
+                                                    size={12}
+                                                    style={{ cursor: 'pointer', opacity: 0.5, color: '#ef4444' }}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        if (confirm('¿Estás seguro de que quieres borrar esta actividad?')) {
+                                                            deleteTask(task.id);
+                                                        }
+                                                    }}
+                                                />
+                                            </div>
+                                            <Clock size={14} color="var(--text-secondary)" />
+                                        </div>
+                                        <p style={{ fontSize: '0.95rem', lineHeight: 1.5, marginBottom: '1rem', fontWeight: 500 }}>
+                                            {task.content}
+                                        </p>
+                                        {isShowingAll && (
+                                            <div style={{
+                                                fontSize: '0.7rem',
+                                                color: 'var(--accent-purple)',
+                                                marginBottom: '1rem',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.4rem'
+                                            }}>
+                                                <Layers size={12} />
+                                                {task.objectiveTitle}
+                                            </div>
+                                        )}
+                                        <div
+                                            style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', position: 'relative' }}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setAssigningTaskId(assigningTaskId === task.id ? null : task.id);
+                                            }}
+                                        >
+                                            <UserAvatar userId={task.assignedTo} size={28} />
+                                            <div>
+                                                <p style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                                                    {users.find(u => u.id === task.assignedTo)?.name || 'Sin asignar'}
+                                                </p>
+                                                <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>Responsable</p>
+                                            </div>
+
+                                            <AnimatePresence>
+                                                {assigningTaskId === task.id && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                                                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                        exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                                                        style={{
+                                                            position: 'absolute',
+                                                            bottom: '100%',
+                                                            left: 0,
+                                                            marginBottom: '0.5rem',
+                                                            background: 'var(--bg-card)',
+                                                            border: '1px solid var(--border-color)',
+                                                            borderRadius: '12px',
+                                                            padding: '0.5rem',
+                                                            zIndex: 100,
+                                                            boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+                                                            minWidth: '180px',
+                                                            display: 'flex',
+                                                            flexDirection: 'column',
+                                                            gap: '0.25rem'
+                                                        }}
+                                                    >
+                                                        <div
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                assignTask(task.id, null);
+                                                                setAssigningTaskId(null);
+                                                            }}
+                                                            style={{
+                                                                padding: '0.5rem 0.75rem',
+                                                                borderRadius: '8px',
+                                                                fontSize: '0.85rem',
+                                                                color: 'var(--text-secondary)',
+                                                                cursor: 'pointer',
+                                                                backgroundColor: !task.assignedTo ? 'rgba(255,255,255,0.05)' : 'transparent',
+                                                                transition: 'var(--transition-smooth)'
+                                                            }}
+                                                        >
+                                                            Sin asignar
+                                                        </div>
+                                                        {users.map(user => (
+                                                            <div
+                                                                key={user.id}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    assignTask(task.id, user.id);
+                                                                    setAssigningTaskId(null);
+                                                                }}
+                                                                style={{
+                                                                    padding: '0.5rem 0.75rem',
+                                                                    borderRadius: '8px',
+                                                                    fontSize: '0.85rem',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '0.5rem',
+                                                                    cursor: 'pointer',
+                                                                    backgroundColor: task.assignedTo === user.id ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                                                                    color: task.assignedTo === user.id ? 'var(--accent-blue)' : 'var(--text-primary)',
+                                                                    transition: 'var(--transition-smooth)'
+                                                                }}
+                                                            >
+                                                                <div style={{ width: '18px', height: '18px', borderRadius: '50%', background: user.color, fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+                                                                    {user.initials}
+                                                                </div>
+                                                                {user.name}
+                                                            </div>
+                                                        ))}
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
+                                        </div>
+                                    </motion.div>
+                                ))}
+                        </AnimatePresence>
+
+                        {!isShowingAll && (
+                            <button
+                                onClick={() => {
+                                    const content = prompt('Nombre de la actividad:');
+                                    if (content) addTask(activeObjective.id, content);
+                                }}
+                                style={{
+                                    width: '100%',
+                                    padding: '0.75rem',
+                                    borderRadius: '12px',
+                                    border: '1px dashed var(--border-color)',
+                                    background: 'transparent',
+                                    color: 'var(--text-secondary)',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '0.5rem',
+                                    transition: 'var(--transition-smooth)'
+                                }}
+                            >
+                                <Plus size={18} />
+                                Añadir Actividad
+                            </button>
+                        )}
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+};
+
+export default Board;

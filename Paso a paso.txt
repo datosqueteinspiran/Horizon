@@ -1,0 +1,5 @@
+Abrir la terminal
+Digita: cd 'd:\SoftIA\Pendientes\Horizon' 
+Digita: npm run dev
+
+Se activa en el pc la página:

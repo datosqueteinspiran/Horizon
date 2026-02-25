@@ -1,0 +1,311 @@
+import React from 'react';
+import { usePlanner } from '../context/PlannerContext';
+import { Layout, CheckSquare, Layers, Plus, Trash2, Edit2, Users, ChevronDown, ChevronRight } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+
+const Sidebar = () => {
+    const { projects, activeProject, setActiveProject, activeObjective, setActiveObjective, addProject, updateProject, deleteProject, addObjective, updateObjective, deleteObjective, users, addUser, updateUser, deleteUser, activeUserId, setActiveUserId } = usePlanner();
+
+    const [expanded, setExpanded] = React.useState({
+        projects: true,
+        objectives: true,
+        team: true
+    });
+
+    const toggleSection = (section) => {
+        setExpanded(prev => ({ ...prev, [section]: !prev[section] }));
+    };
+
+    const SectionHeader = ({ title, section, onAdd }) => (
+        <div
+            onClick={() => toggleSection(section)}
+            style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '1rem',
+                cursor: 'pointer',
+                userSelect: 'none'
+            }}
+        >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                {expanded[section] ? <ChevronDown size={14} color="var(--text-secondary)" /> : <ChevronRight size={14} color="var(--text-secondary)" />}
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    {title}
+                </p>
+            </div>
+            {onAdd && (
+                <Plus
+                    size={14}
+                    style={{ cursor: 'pointer', color: 'var(--text-secondary)' }}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onAdd();
+                    }}
+                />
+            )}
+        </div>
+    );
+    return (
+        <aside className="glass" style={{
+            width: '280px',
+            height: '100%',
+            borderRight: '1px solid var(--border-color)',
+            padding: '2rem 1.5rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '2rem',
+            overflowY: 'auto'
+        }}>
+            <div className="logo" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '8px',
+                    background: 'var(--accent-blue)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                }}>
+                    <Layout size={20} color="white" />
+                </div>
+                <span style={{ fontWeight: 700, fontSize: '1.25rem', letterSpacing: '-0.02em' }}>Horizon</span>
+            </div>
+
+            <nav style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                <div>
+                    <SectionHeader
+                        title="Proyectos"
+                        section="projects"
+                        onAdd={() => {
+                            const name = prompt('Nombre del nuevo proyecto:');
+                            if (name) addProject(name);
+                        }}
+                    />
+                    <AnimatePresence>
+                        {expanded.projects && (
+                            <motion.ul
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.5rem', overflow: 'hidden' }}
+                            >
+                                {projects.map(project => (
+                                    <li
+                                        key={project.id}
+                                        onClick={() => {
+                                            setActiveProject(project);
+                                            setActiveObjective(null);
+                                        }}
+                                        style={{
+                                            padding: '0.75rem 1rem',
+                                            borderRadius: '10px',
+                                            cursor: 'pointer',
+                                            fontSize: '0.9rem',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            gap: '0.5rem',
+                                            backgroundColor: activeProject?.id === project.id ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                                            color: activeProject?.id === project.id ? 'var(--accent-blue)' : 'var(--text-primary)',
+                                            transition: 'var(--transition-smooth)'
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, minWidth: 0 }}>
+                                            <Layers size={18} style={{ flexShrink: 0 }} />
+                                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                {project.name}
+                                            </span>
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '0.4rem', opacity: 0.6, flexShrink: 0 }}>
+                                            <Edit2
+                                                size={14}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    const newName = prompt('Nuevo nombre del proyecto:', project.name);
+                                                    if (newName) updateProject(project.id, newName);
+                                                }}
+                                                style={{ cursor: 'pointer' }}
+                                            />
+                                            <Trash2
+                                                size={14}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (confirm('¿Estás seguro de que quieres borrar este proyecto y TODO su contenido?')) {
+                                                        deleteProject(project.id);
+                                                    }
+                                                }}
+                                                style={{ cursor: 'pointer', color: '#ef4444' }}
+                                            />
+                                        </div>
+                                    </li>
+                                ))}
+                            </motion.ul>
+                        )}
+                    </AnimatePresence>
+                </div>
+
+                {activeProject && (
+                    <div>
+                        <SectionHeader
+                            title="Objetivos"
+                            section="objectives"
+                            onAdd={() => {
+                                const title = prompt('Título del nuevo objetivo:');
+                                if (title) addObjective(activeProject.id, title);
+                            }}
+                        />
+                        <AnimatePresence>
+                            {expanded.objectives && (
+                                <motion.ul
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: 'auto', opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.5rem', overflow: 'hidden' }}
+                                >
+                                    <li
+                                        onClick={() => setActiveObjective(null)}
+                                        style={{
+                                            padding: '0.75rem 1rem',
+                                            borderRadius: '10px',
+                                            cursor: 'pointer',
+                                            fontSize: '0.85rem',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.75rem',
+                                            backgroundColor: !activeObjective ? 'rgba(255, 255, 255, 0.05)' : 'transparent',
+                                            color: !activeObjective ? '#fff' : 'var(--text-secondary)',
+                                            transition: 'var(--transition-smooth)',
+                                            marginBottom: '0.5rem',
+                                            borderBottom: '1px solid var(--border-color)'
+                                        }}
+                                    >
+                                        <Layout size={16} />
+                                        <span style={{ fontWeight: 600 }}>Todas las tareas</span>
+                                    </li>
+                                    {activeProject.objectives.map(objective => (
+                                        <li
+                                            key={objective.id}
+                                            onClick={() => setActiveObjective(objective)}
+                                            style={{
+                                                padding: '0.75rem 1rem',
+                                                borderRadius: '10px',
+                                                cursor: 'pointer',
+                                                fontSize: '0.85rem',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'space-between',
+                                                gap: '0.5rem',
+                                                backgroundColor: activeObjective?.id === objective.id ? 'rgba(255, 255, 255, 0.05)' : 'transparent',
+                                                color: activeObjective?.id === objective.id ? '#fff' : 'var(--text-secondary)',
+                                                transition: 'var(--transition-smooth)'
+                                            }}
+                                        >
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, minWidth: 0 }}>
+                                                <CheckSquare size={16} style={{ flexShrink: 0 }} />
+                                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                    {objective.title}
+                                                </span>
+                                            </div>
+                                            <div style={{ display: 'flex', gap: '0.4rem', opacity: 0.6, flexShrink: 0 }}>
+                                                <Edit2
+                                                    size={14}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        const newTitle = prompt('Nuevo nombre del objetivo:', objective.title);
+                                                        if (newTitle) updateObjective(objective.id, newTitle);
+                                                    }}
+                                                    style={{ cursor: 'pointer' }}
+                                                />
+                                                <Trash2
+                                                    size={14}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        if (confirm('¿Estás seguro de que quieres borrar este objetivo y todas sus tareas?')) {
+                                                            deleteObjective(objective.id);
+                                                        }
+                                                    }}
+                                                    style={{ cursor: 'pointer', color: '#ef4444' }}
+                                                />
+                                            </div>
+                                        </li>
+                                    ))}
+                                </motion.ul>
+                            )}
+                        </AnimatePresence>
+                    </div>
+                )}
+            </nav>
+
+            <div style={{ marginTop: 'auto', paddingTop: '1rem' }}>
+                <SectionHeader
+                    title="Equipo"
+                    section="team"
+                    onAdd={() => {
+                        const name = prompt('Nombre del nuevo miembro:');
+                        if (name) addUser(name);
+                    }}
+                />
+                <AnimatePresence>
+                    {expanded.team && (
+                        { activeUserId && (
+                            <div
+                                onClick={() => setActiveUserId(null)}
+                                style={{
+                                    padding: '0.4rem 0.8rem',
+                                    borderRadius: '20px',
+                                    background: 'rgba(255,255,255,0.1)',
+                                    fontSize: '0.7rem',
+                                    cursor: 'pointer',
+                                    color: 'var(--text-secondary)',
+                                    marginBottom: '0.5rem',
+                                    border: '1px solid var(--border-color)',
+                                    width: 'fit-content'
+                                }}
+                            >
+                                Limpiar filtro de usuario
+                            </div>
+                        )}
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        {users.map(user => (
+                            <div
+                                key={user.id}
+                                title={`${user.name} (Clic para filtrar / Shift+Clic para editar)`}
+                                onClick={(e) => {
+                                    if (e.shiftKey) {
+                                        const action = prompt(`Usuario: ${user.name}\n1. Editar nombre\n2. Eliminar de equipo\n\nEscribe 1 o 2:`);
+                                        if (action === '1') {
+                                            const newName = prompt('Nuevo nombre:', user.name);
+                                            if (newName) updateUser(user.id, newName);
+                                        } else if (action === '2') {
+                                            if (confirm(`¿Estás seguro de eliminar a ${user.name}? Se quitará de sus actividades asignadas.`)) {
+                                                deleteUser(user.id);
+                                            }
+                                        }
+                                    } else {
+                                        setActiveUserId(activeUserId === user.id ? null : user.id);
+                                    }
+                                }}
+                                style={{
+                                    width: '32px', height: '32px', borderRadius: '50%',
+                                    background: user.color, color: '#fff', fontSize: '12px',
+                                    fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    border: activeUserId === user.id ? '2px solid #fff' : '2px solid var(--bg-card)',
+                                    cursor: 'pointer',
+                                    boxShadow: activeUserId === user.id ? `0 0 10px ${user.color}` : 'none',
+                                    transform: activeUserId === user.id ? 'scale(1.1)' : 'scale(1)',
+                                    transition: 'var(--transition-smooth)'
+                                }}
+                            >
+                                {user.initials}
+                            </div>
+                        ))}
+                    </div>
+                    )}
+                </AnimatePresence>
+            </div>
+        </aside>
+    );
+};
+
+export default Sidebar;
