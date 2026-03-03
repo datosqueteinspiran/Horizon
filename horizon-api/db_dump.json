@@ -1,0 +1,95 @@
+{
+  "projects": [
+    {
+      "id": "1772567460173",
+      "name": "Prueba",
+      "created_at": "2026-03-03T19:51:00.000Z"
+    },
+    {
+      "id": "1772569097266",
+      "name": "Nuevo",
+      "created_at": "2026-03-03T20:18:17.000Z"
+    },
+    {
+      "id": "p1",
+      "name": "Plan de Desarrollo Institucional",
+      "created_at": "2026-03-03T20:34:56.000Z"
+    }
+  ],
+  "objectives": [
+    {
+      "id": "1772569127060",
+      "project_id": "1772569097266",
+      "title": "Objetivo 1",
+      "order": 0
+    },
+    {
+      "id": "o1",
+      "project_id": "p1",
+      "title": "Mejorar la infraestructura digital",
+      "order": 0
+    },
+    {
+      "id": "o2",
+      "project_id": "p1",
+      "title": "Optimización de procesos administrativos",
+      "order": 0
+    },
+    {
+      "id": "unassigned-1772567460173",
+      "project_id": "1772567460173",
+      "title": "Sin Objetivo",
+      "order": 0
+    },
+    {
+      "id": "unassigned-1772569097266",
+      "project_id": "1772569097266",
+      "title": "Sin Objetivo",
+      "order": 0
+    },
+    {
+      "id": "unassigned-p1",
+      "project_id": "p1",
+      "title": "Sin Objetivo",
+      "order": 0
+    }
+  ],
+  "tasks": [
+    {
+      "id": "1772569138169",
+      "objective_id": "1772569127060",
+      "content": "Actividad 1",
+      "status": "To Do",
+      "priority": "Media",
+      "assigned_to": "1772569208305",
+      "created_at": "2026-03-03T20:18:58.000Z"
+    },
+    {
+      "id": "t1",
+      "objective_id": "o1",
+      "content": "Migración de servidores BPUN",
+      "status": "To Do",
+      "priority": "Alta",
+      "assigned_to": "u2",
+      "created_at": "2026-03-03T20:34:56.000Z"
+    },
+    {
+      "id": "t2",
+      "objective_id": "o1",
+      "content": "Implementación de API Horizon",
+      "status": "Doing",
+      "priority": "Media",
+      "assigned_to": null,
+      "created_at": "2026-03-03T20:34:56.000Z"
+    },
+    {
+      "id": "t3",
+      "objective_id": "o2",
+      "content": "Rediseño de flujos de aprobación",
+      "status": "Done",
+      "priority": "Baja",
+      "assigned_to": "u3",
+      "created_at": "2026-03-03T20:34:56.000Z"
+    }
+  ]
+}

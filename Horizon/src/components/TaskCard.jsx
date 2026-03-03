@@ -384,30 +384,37 @@ const TaskCard = ({ task, isShowingMultiple, columns }) => {
                                 }}
                             >
                                 <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', padding: '0 0.5rem' }}>Asignar responsable:</p>
-                                {users.map(user => (
-                                    <div
-                                        key={user.id}
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            assignTask(task.id, user.id);
-                                            setAssigningTaskId(null);
-                                        }}
-                                        style={{
-                                            padding: '8px 10px',
-                                            fontSize: '0.8rem',
-                                            borderRadius: '6px',
-                                            cursor: 'pointer',
-                                            color: task.assignedTo === user.id ? 'var(--accent-blue)' : '#a1a1aa',
-                                            background: task.assignedTo === user.id ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '8px'
-                                        }}
-                                    >
-                                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: user.color }} />
-                                        {user.name}
-                                    </div>
-                                ))}
+                                {users
+                                    .filter(user => activeProject && (user.canViewAll || (user.assignedProjects || []).includes(activeProject.id)))
+                                    .map(user => (
+                                        <div
+                                            key={user.id}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                assignTask(task.id, user.id);
+                                                setAssigningTaskId(null);
+                                            }}
+                                            style={{
+                                                padding: '8px 10px',
+                                                fontSize: '0.8rem',
+                                                borderRadius: '6px',
+                                                cursor: 'pointer',
+                                                color: task.assignedTo === user.id ? 'var(--accent-blue)' : '#a1a1aa',
+                                                background: task.assignedTo === user.id ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '8px'
+                                            }}
+                                        >
+                                            <div style={{ width: 8, height: 8, borderRadius: '50%', background: user.color }} />
+                                            {user.name}
+                                        </div>
+                                    ))}
+                                {users.filter(user => activeProject && (user.canViewAll || (user.assignedProjects || []).includes(activeProject.id))).length === 0 && (
+                                    <p style={{ fontSize: '0.7rem', color: '#ef4444', padding: '0 0.5rem', fontStyle: 'italic' }}>
+                                        No hay miembros asignados a este proyecto.
+                                    </p>
+                                )}
                                 <div
                                     onClick={(e) => {
                                         e.stopPropagation();

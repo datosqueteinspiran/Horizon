@@ -45,7 +45,7 @@ const DroppableColumn = ({ id, children }) => {
 };
 
 const Board = () => {
-    const { activeProject, selectedObjectiveIds, updateTaskStatus, addTask, users, assignTask, activeUserId, moveTask, reorderTask, updateTaskPriority } = usePlanner();
+    const { activeProject, selectedObjectiveIds, updateTaskStatus, addTask, users, assignTask, activeUserId, moveTask, reorderTask, updateTaskPriority, exportProjectToCSV } = usePlanner();
     const [addingToGroup, setAddingToGroup] = useState(null);
     const [activeTask, setActiveTask] = useState(null);
     const [groupBy, setGroupBy] = useState('status'); // 'status', 'priority', 'objective', or 'user'
@@ -75,7 +75,7 @@ const Board = () => {
             ? ['Urgente', 'Alta', 'Media', 'Baja']
             : groupBy === 'objective'
                 ? (activeProject?.objectives || []).filter(o => selectedObjectiveIds.includes(o.id)).map(o => o.id)
-                : [...users.map(u => u.id), 'unassigned'];
+                : [...users.map(u => u.id), 'unassigned-user'];
 
     const handleDragStart = (event) => {
         if (event.active.data.current.type === 'Task') {
@@ -101,7 +101,7 @@ const Board = () => {
                 if (groupBy === 'status') newGroupValue = overTask.status;
                 else if (groupBy === 'priority') newGroupValue = overTask.priority;
                 else if (groupBy === 'objective') newGroupValue = overTask.objectiveId;
-                else newGroupValue = overTask.assignedTo || 'unassigned';
+                else newGroupValue = overTask.assignedTo || 'unassigned-user';
             }
         }
 
@@ -116,7 +116,7 @@ const Board = () => {
                     moveTask(taskId, overId);
                 } else {
                     // Group by user
-                    assignTask(taskId, overId === 'unassigned' ? null : overId);
+                    assignTask(taskId, overId === 'unassigned-user' ? null : overId);
                 }
             } else if (active.id !== overId) {
                 // Drop over another task (handle as reordering)
@@ -149,80 +149,107 @@ const Board = () => {
                 background: 'var(--bg-main)',
                 minHeight: 0 // Constrain height for children
             }}>
-                {/* View Switcher */}
-                <div style={{ padding: '1.5rem 2rem 0', display: 'flex', justifyContent: 'flex-end' }}>
-                    <div style={{
-                        background: 'rgba(255,255,255,0.03)',
-                        padding: '4px',
-                        borderRadius: '10px',
-                        display: 'flex',
-                        gap: '4px',
-                        border: '1px solid var(--border-color)'
-                    }}>
+                {/* View Switcher & Export */}
+                <div style={{ padding: '1.5rem 2rem 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>
+                        {activeProject.name}
+                    </h2>
+                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                         <button
-                            onClick={() => setGroupBy('status')}
+                            onClick={() => exportProjectToCSV(activeProject)}
                             style={{
-                                padding: '6px 12px',
-                                borderRadius: '7px',
-                                border: 'none',
-                                background: groupBy === 'status' ? 'var(--accent-blue)' : 'transparent',
-                                color: groupBy === 'status' ? '#fff' : 'var(--text-secondary)',
+                                padding: '8px 16px',
+                                borderRadius: '10px',
+                                border: '1px solid var(--accent-blue)',
+                                background: 'rgba(59, 130, 246, 0.1)',
+                                color: 'var(--accent-blue)',
                                 fontSize: '0.75rem',
-                                fontWeight: 600,
+                                fontWeight: 700,
                                 cursor: 'pointer',
-                                transition: 'all 0.2s'
+                                transition: 'all 0.2s',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px'
                             }}
+                            onMouseEnter={(e) => e.target.style.background = 'rgba(59, 130, 246, 0.2)'}
+                            onMouseLeave={(e) => e.target.style.background = 'rgba(59, 130, 246, 0.1)'}
                         >
-                            Estado
+                            <Layers size={14} />
+                            Exportar CSV
                         </button>
-                        <button
-                            onClick={() => setGroupBy('priority')}
-                            style={{
-                                padding: '6px 12px',
-                                borderRadius: '7px',
-                                border: 'none',
-                                background: groupBy === 'priority' ? 'var(--accent-blue)' : 'transparent',
-                                color: groupBy === 'priority' ? '#fff' : 'var(--text-secondary)',
-                                fontSize: '0.75rem',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                transition: 'all 0.2s'
-                            }}
-                        >
-                            Prioridad
-                        </button>
-                        <button
-                            onClick={() => setGroupBy('objective')}
-                            style={{
-                                padding: '6px 12px',
-                                borderRadius: '7px',
-                                border: 'none',
-                                background: groupBy === 'objective' ? 'var(--accent-blue)' : 'transparent',
-                                color: groupBy === 'objective' ? '#fff' : 'var(--text-secondary)',
-                                fontSize: '0.75rem',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                transition: 'all 0.2s'
-                            }}
-                        >
-                            Objetivos
-                        </button>
-                        <button
-                            onClick={() => setGroupBy('user')}
-                            style={{
-                                padding: '6px 12px',
-                                borderRadius: '7px',
-                                border: 'none',
-                                background: groupBy === 'user' ? 'var(--accent-blue)' : 'transparent',
-                                color: groupBy === 'user' ? '#fff' : 'var(--text-secondary)',
-                                fontSize: '0.75rem',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                transition: 'all 0.2s'
-                            }}
-                        >
-                            Equipo
-                        </button>
+                        <div style={{
+                            background: 'rgba(255,255,255,0.03)',
+                            padding: '4px',
+                            borderRadius: '10px',
+                            display: 'flex',
+                            gap: '4px',
+                            border: '1px solid var(--border-color)'
+                        }}>
+                            <button
+                                onClick={() => setGroupBy('status')}
+                                style={{
+                                    padding: '6px 12px',
+                                    borderRadius: '7px',
+                                    border: 'none',
+                                    background: groupBy === 'status' ? 'var(--accent-blue)' : 'transparent',
+                                    color: groupBy === 'status' ? '#fff' : 'var(--text-secondary)',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s'
+                                }}
+                            >
+                                Estado
+                            </button>
+                            <button
+                                onClick={() => setGroupBy('priority')}
+                                style={{
+                                    padding: '6px 12px',
+                                    borderRadius: '7px',
+                                    border: 'none',
+                                    background: groupBy === 'priority' ? 'var(--accent-blue)' : 'transparent',
+                                    color: groupBy === 'priority' ? '#fff' : 'var(--text-secondary)',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s'
+                                }}
+                            >
+                                Prioridad
+                            </button>
+                            <button
+                                onClick={() => setGroupBy('objective')}
+                                style={{
+                                    padding: '6px 12px',
+                                    borderRadius: '7px',
+                                    border: 'none',
+                                    background: groupBy === 'objective' ? 'var(--accent-blue)' : 'transparent',
+                                    color: groupBy === 'objective' ? '#fff' : 'var(--text-secondary)',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s'
+                                }}
+                            >
+                                Objetivos
+                            </button>
+                            <button
+                                onClick={() => setGroupBy('user')}
+                                style={{
+                                    padding: '6px 12px',
+                                    borderRadius: '7px',
+                                    border: 'none',
+                                    background: groupBy === 'user' ? 'var(--accent-blue)' : 'transparent',
+                                    color: groupBy === 'user' ? '#fff' : 'var(--text-secondary)',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s'
+                                }}
+                            >
+                                Equipo
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -241,7 +268,7 @@ const Board = () => {
                             if (groupBy === 'status') return t.status === column;
                             if (groupBy === 'priority') return t.priority === column;
                             if (groupBy === 'objective') return t.objectiveId === column;
-                            return (t.assignedTo || 'unassigned') === column;
+                            return (t.assignedTo || 'unassigned-user') === column;
                         });
 
                         const columnTitle = groupBy === 'status'
@@ -352,7 +379,7 @@ const Board = () => {
                                                             Seleccionar objetivo:
                                                         </p>
                                                         {activeProject.objectives
-                                                            .filter(o => selectedObjectiveIds.includes(o.id) || o.id === 'unassigned')
+                                                            .filter(o => selectedObjectiveIds.includes(o.id) || o.id === `unassigned-${activeProject.id}`)
                                                             .map(obj => (
                                                                 <div
                                                                     key={obj.id}
@@ -364,7 +391,7 @@ const Board = () => {
                                                                             } else if (groupBy === 'priority') {
                                                                                 addTask(obj.id, content, column, null);
                                                                             } else if (groupBy === 'user') {
-                                                                                const targetUserId = column === 'unassigned' ? null : column;
+                                                                                const targetUserId = column === 'unassigned-user' ? null : column;
                                                                                 addTask(obj.id, content, 'Media', targetUserId);
                                                                             }
                                                                         }

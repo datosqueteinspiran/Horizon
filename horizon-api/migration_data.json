@@ -1,0 +1,88 @@
+{
+    "horizon_data": [
+        {
+            "id": "p1",
+            "name": "Plan de Desarrollo Institucional",
+            "objectives": [
+                {
+                    "id": "o1",
+                    "title": "Mejorar la infraestructura digital",
+                    "tasks": [
+                        {
+                            "id": "t1",
+                            "content": "Migración de servidores BPUN",
+                            "status": "To Do",
+                            "priority": "Alta",
+                            "assignedTo": "u2"
+                        },
+                        {
+                            "id": "t2",
+                            "content": "Implementación de API Horizon",
+                            "status": "Doing",
+                            "priority": "Media",
+                            "assignedTo": null
+                        }
+                    ]
+                },
+                {
+                    "id": "o2",
+                    "title": "Optimización de procesos administrativos",
+                    "tasks": [
+                        {
+                            "id": "t3",
+                            "content": "Rediseño de flujos de aprobación",
+                            "status": "Done",
+                            "priority": "Baja",
+                            "assignedTo": "u3"
+                        }
+                    ]
+                },
+                {
+                    "id": "unassigned",
+                    "title": "Sin Objetivo",
+                    "tasks": []
+                }
+            ]
+        }
+    ],
+    "horizon_users": [
+        {
+            "email": "larry.aguirre@softia.com",
+            "username": "larry",
+            "password": "123",
+            "canEdit": true,
+            "canViewAll": true,
+            "assignedProjects": [
+                "p1"
+            ],
+            "id": "u1",
+            "name": "Larry Aguirre",
+            "initials": "LA",
+            "color": "#10b981"
+        },
+        {
+            "email": "invitado@softia.com",
+            "username": "invitado",
+            "password": "123",
+            "canEdit": true,
+            "canViewAll": false,
+            "assignedProjects": [],
+            "id": "u2",
+            "name": "Usuario Invitado",
+            "initials": "UI",
+            "color": "#3b82f6"
+        },
+        {
+            "email": "director@softia.com",
+            "username": "director",
+            "password": "123",
+            "canEdit": true,
+            "canViewAll": false,
+            "assignedProjects": [],
+            "id": "u3",
+            "name": "Director de Proyecto",
+            "initials": "DP",
+            "color": "#8b5cf6"
+        }
+    ]
+}

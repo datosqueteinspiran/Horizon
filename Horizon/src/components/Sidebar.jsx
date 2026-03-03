@@ -20,7 +20,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 
-const Sidebar = () => {
+const Sidebar = ({ currentView, setCurrentView }) => {
     const {
         projects, activeProject, setActiveProjectId,
         selectedObjectiveIds, toggleObjective, toggleAllObjectives,
@@ -28,13 +28,16 @@ const Sidebar = () => {
         addObjective, updateObjective, deleteObjective,
         users, addUser, updateUser, deleteUser,
         activeUserId, setActiveUserId,
-        reorderObjectives
+        reorderObjectives,
+        currentUser, logout, changePassword, migrateLocalData
     } = usePlanner();
 
     const [expanded, setExpanded] = React.useState({
         projects: true,
+        projectMembers: true,
         objectives: true,
-        team: true
+        team: true,
+        profile: false
     });
     const [activeId, setActiveId] = React.useState(null);
 
@@ -213,6 +216,45 @@ const Sidebar = () => {
             overflowY: 'auto',
             position: 'relative' // Container for overlays
         }}>
+            <div className="logo" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                <div style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '8px',
+                    background: 'var(--accent-blue)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer'
+                }} onClick={() => setCurrentView('board')}>
+                    <Layout size={20} color="white" />
+                </div>
+                <span style={{ fontWeight: 700, fontSize: '1.25rem', letterSpacing: '-0.02em', cursor: 'pointer' }} onClick={() => setCurrentView('board')}>Horizon</span>
+            </div>
+
+            {currentUser?.canViewAll && (
+                <div
+                    onClick={() => setCurrentView('users')}
+                    style={{
+                        padding: '0.75rem 1rem',
+                        borderRadius: '10px',
+                        cursor: 'pointer',
+                        fontSize: '0.9rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.75rem',
+                        backgroundColor: currentView === 'users' ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                        color: currentView === 'users' ? 'var(--accent-blue)' : 'var(--text-primary)',
+                        transition: 'var(--transition-smooth)',
+                        marginBottom: '1rem',
+                        border: currentView === 'users' ? '1px solid var(--accent-blue)' : '1px solid transparent'
+                    }}
+                >
+                    <Users size={18} />
+                    <span style={{ fontWeight: 600 }}>Panel de Usuarios</span>
+                </div>
+            )}
+
             <DndContext
                 sensors={sensors}
                 collisionDetection={closestCorners}
@@ -220,20 +262,6 @@ const Sidebar = () => {
                 onDragEnd={handleDragEnd}
                 modifiers={[restrictToVerticalAxis]}
             >
-                <div className="logo" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <div style={{
-                        width: '32px',
-                        height: '32px',
-                        borderRadius: '8px',
-                        background: 'var(--accent-blue)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                    }}>
-                        <Layout size={20} color="white" />
-                    </div>
-                    <span style={{ fontWeight: 700, fontSize: '1.25rem', letterSpacing: '-0.02em' }}>Horizon</span>
-                </div>
 
                 <nav style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                     <div>
@@ -253,59 +281,144 @@ const Sidebar = () => {
                                     exit={{ height: 0, opacity: 0 }}
                                     style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.5rem', overflow: 'hidden' }}
                                 >
-                                    {projects.map(project => (
-                                        <li
-                                            key={project.id}
-                                            onClick={() => {
-                                                setActiveProjectId(project.id);
-                                            }}
-                                            style={{
-                                                padding: '0.75rem 1rem',
-                                                borderRadius: '10px',
-                                                cursor: 'pointer',
-                                                fontSize: '0.9rem',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'space-between',
-                                                gap: '0.5rem',
-                                                backgroundColor: activeProject?.id === project.id ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
-                                                color: activeProject?.id === project.id ? 'var(--accent-blue)' : 'var(--text-primary)',
-                                                transition: 'var(--transition-smooth)'
-                                            }}
-                                        >
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, minWidth: 0 }}>
-                                                <Layers size={18} style={{ flexShrink: 0 }} />
-                                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                    {project.name}
-                                                </span>
-                                            </div>
-                                            <div style={{ display: 'flex', gap: '0.4rem', opacity: 0.6, flexShrink: 0 }}>
-                                                <Edit2
-                                                    size={14}
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        const newName = prompt('Nuevo nombre del proyecto:', project.name);
-                                                        if (newName) updateProject(project.id, newName);
-                                                    }}
-                                                    style={{ cursor: 'pointer' }}
-                                                />
-                                                <Trash2
-                                                    size={14}
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        if (confirm('¿Estás seguro de que quieres borrar este proyecto y TODO su contenido?')) {
-                                                            deleteProject(project.id);
-                                                        }
-                                                    }}
-                                                    style={{ cursor: 'pointer', color: '#ef4444' }}
-                                                />
-                                            </div>
-                                        </li>
-                                    ))}
+                                    {projects
+                                        .filter(p => currentUser?.canViewAll || (currentUser?.assignedProjects || []).includes(p.id))
+                                        .map(project => (
+                                            <li
+                                                key={project.id}
+                                                onClick={() => {
+                                                    setActiveProjectId(project.id);
+                                                    setCurrentView('board');
+                                                }}
+                                                style={{
+                                                    padding: '0.75rem 1rem',
+                                                    borderRadius: '10px',
+                                                    cursor: 'pointer',
+                                                    fontSize: '0.9rem',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'space-between',
+                                                    gap: '0.5rem',
+                                                    backgroundColor: activeProject?.id === project.id ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                                                    color: activeProject?.id === project.id ? 'var(--accent-blue)' : 'var(--text-primary)',
+                                                    transition: 'var(--transition-smooth)'
+                                                }}
+                                            >
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, minWidth: 0 }}>
+                                                    <Layers size={18} style={{ flexShrink: 0 }} />
+                                                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                        {project.name}
+                                                    </span>
+                                                </div>
+                                                <div style={{ display: 'flex', gap: '0.4rem', opacity: 0.6, flexShrink: 0 }}>
+                                                    <Edit2
+                                                        size={14}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            const newName = prompt('Nuevo nombre del proyecto:', project.name);
+                                                            if (newName) updateProject(project.id, newName);
+                                                        }}
+                                                        style={{ cursor: 'pointer' }}
+                                                    />
+                                                    <Trash2
+                                                        size={14}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (confirm('¿Estás seguro de que quieres borrar este proyecto y TODO su contenido?')) {
+                                                                deleteProject(project.id);
+                                                            }
+                                                        }}
+                                                        style={{ cursor: 'pointer', color: '#ef4444' }}
+                                                    />
+                                                </div>
+                                            </li>
+                                        ))}
                                 </motion.ul>
                             )}
                         </AnimatePresence>
                     </div>
+
+                    {activeProject && (
+                        <div>
+                            <SectionHeader
+                                title="Miembros del Proyecto"
+                                section="projectMembers"
+                                onAdd={() => {
+                                    const identifier = prompt("Ingresa el correo electrónico o nombre de usuario exacto de la persona que quieres invitar:");
+                                    if (!identifier) return;
+
+                                    const targetUser = users.find(u =>
+                                        u.email.toLowerCase() === identifier.toLowerCase().trim() ||
+                                        u.username.toLowerCase() === identifier.toLowerCase().trim()
+                                    );
+
+                                    if (!targetUser) {
+                                        alert("No se encontró ningún usuario con ese identificador. Asegúrate de escribirlo correctamente.");
+                                        return;
+                                    }
+
+                                    if ((targetUser.assignedProjects || []).includes(activeProject.id) || targetUser.canViewAll) {
+                                        alert(`${targetUser.name} ya tiene acceso a este proyecto.`);
+                                        return;
+                                    }
+
+                                    updateUser(targetUser.id, { assignedProjects: [...(targetUser.assignedProjects || []), activeProject.id] });
+                                    alert(`${targetUser.name} ha sido añadido al proyecto.`);
+                                }}
+                            />
+                            <AnimatePresence>
+                                {expanded.projectMembers && (
+                                    <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: 'auto', opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        style={{ overflow: 'hidden' }}
+                                    >
+                                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', padding: '0 0.5rem 1rem' }}>
+                                            {users
+                                                .filter(u => u.canViewAll || (u.assignedProjects || []).includes(activeProject.id))
+                                                .map(user => (
+                                                    <div
+                                                        key={user.id}
+                                                        title={`${user.name}${user.canViewAll ? ' (Admin - Ver todo)' : ''}`}
+                                                        style={{
+                                                            width: '28px', height: '28px', borderRadius: '50%',
+                                                            background: user.color, color: '#fff', fontSize: '10px',
+                                                            fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                            border: '2px solid var(--bg-card)',
+                                                            position: 'relative'
+                                                        }}
+                                                    >
+                                                        {user.initials}
+                                                        {(!user.canViewAll && user.id !== currentUser?.id) && (
+                                                            <div
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    if (confirm(`¿Quitar a ${user.name} de este proyecto?`)) {
+                                                                        updateUser(user.id, {
+                                                                            assignedProjects: user.assignedProjects.filter(id => id !== activeProject.id)
+                                                                        });
+                                                                    }
+                                                                }}
+                                                                style={{
+                                                                    position: 'absolute', top: -4, right: -4,
+                                                                    width: 14, height: 14, borderRadius: '50%',
+                                                                    background: '#ef4444', color: '#fff',
+                                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                                    fontSize: '8px', cursor: 'pointer', border: '1px solid var(--bg-card)'
+                                                                }}
+                                                            >
+                                                                <Trash2 size={8} />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+                    )}
 
                     {activeProject && (
                         <div>
@@ -386,80 +499,6 @@ const Sidebar = () => {
                     )}
                 </nav>
 
-                <div style={{ marginTop: 'auto', paddingTop: '1rem' }}>
-                    <SectionHeader
-                        title="Equipo"
-                        section="team"
-                        onAdd={() => {
-                            const name = prompt('Nombre del nuevo miembro:');
-                            if (name) addUser(name);
-                        }}
-                    />
-                    <AnimatePresence>
-                        {expanded.team && (
-                            <motion.div
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: 'auto', opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                style={{ overflow: 'hidden' }}
-                            >
-                                {activeUserId && (
-                                    <div
-                                        onClick={() => setActiveUserId(null)}
-                                        style={{
-                                            padding: '0.4rem 0.8rem',
-                                            borderRadius: '20px',
-                                            background: 'rgba(255,255,255,0.1)',
-                                            fontSize: '0.7rem',
-                                            cursor: 'pointer',
-                                            color: 'var(--text-secondary)',
-                                            marginBottom: '0.5rem',
-                                            border: '1px solid var(--border-color)',
-                                            width: 'fit-content'
-                                        }}
-                                    >
-                                        Limpiar filtro de usuario
-                                    </div>
-                                )}
-                                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                                    {users.map(user => (
-                                        <div
-                                            key={user.id}
-                                            title={`${user.name} (Clic para filtrar / Shift+Clic para editar)`}
-                                            onClick={(e) => {
-                                                if (e.shiftKey) {
-                                                    const action = prompt(`Usuario: ${user.name}\n1. Editar nombre\n2. Eliminar de equipo\n\nEscribe 1 o 2:`);
-                                                    if (action === '1') {
-                                                        const newName = prompt('Nuevo nombre:', user.name);
-                                                        if (newName) updateUser(user.id, newName);
-                                                    } else if (action === '2') {
-                                                        if (confirm(`¿Estás seguro de eliminar a ${user.name}? Se quitará de sus actividades asignadas.`)) {
-                                                            deleteUser(user.id);
-                                                        }
-                                                    }
-                                                } else {
-                                                    setActiveUserId(activeUserId === user.id ? null : user.id);
-                                                }
-                                            }}
-                                            style={{
-                                                width: '32px', height: '32px', borderRadius: '50%',
-                                                background: user.color, color: '#fff', fontSize: '12px',
-                                                fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                border: activeUserId === user.id ? '2px solid #fff' : '2px solid var(--bg-card)',
-                                                cursor: 'pointer',
-                                                boxShadow: activeUserId === user.id ? `0 0 10px ${user.color}` : 'none',
-                                                transform: activeUserId === user.id ? 'scale(1.1)' : 'scale(1)',
-                                                transition: 'var(--transition-smooth)'
-                                            }}
-                                        >
-                                            {user.initials}
-                                        </div>
-                                    ))}
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </div>
                 <DragOverlay dropAnimation={{
                     duration: 200,
                     easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)',
@@ -499,6 +538,186 @@ const Sidebar = () => {
                         </div>
                     ) : null}
                 </DragOverlay>
+                <div style={{ marginTop: 'auto', paddingTop: '1.5rem', borderTop: '1px solid var(--border-color)' }}>
+                    <div
+                        onClick={() => toggleSection('profile')}
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.75rem',
+                            padding: '0.75rem 1rem',
+                            borderRadius: '12px',
+                            background: 'rgba(255,255,255,0.03)',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            border: '1px solid rgba(255,255,255,0.05)'
+                        }}
+                    >
+                        <div style={{
+                            width: '32px', height: '32px', borderRadius: '50%',
+                            background: currentUser?.color || 'var(--accent-blue)',
+                            color: '#fff', fontSize: '12px', fontWeight: 700,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                        }}>
+                            {currentUser?.initials}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ fontSize: '0.85rem', fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {currentUser?.name}
+                            </p>
+                            <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                                {currentUser?.username}
+                            </p>
+                        </div>
+                        {expanded.profile ? <ChevronDown size={14} color="var(--text-secondary)" /> : <ChevronRight size={14} color="var(--text-secondary)" />}
+                    </div>
+
+                    <AnimatePresence>
+                        {expanded.profile && (
+                            <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                style={{ overflow: 'hidden', marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '4px' }}
+                            >
+                                {localStorage.getItem('horizon_data') && (
+                                    <button
+                                        onClick={async () => {
+                                            if (confirm('Se detectaron datos locales. ¿Deseas migrarlos a la base de datos de MariaDB?')) {
+                                                const res = await migrateLocalData();
+                                                alert(res.message);
+                                            }
+                                        }}
+                                        style={{
+                                            width: '100%', padding: '8px 12px', borderRadius: '8px',
+                                            border: 'none', background: 'rgba(59, 130, 246, 0.1)', color: 'var(--accent-blue)',
+                                            fontSize: '0.8rem', textAlign: 'left', cursor: 'pointer',
+                                            display: 'flex', alignItems: 'center', gap: '8px',
+                                            marginBottom: '8px',
+                                            transition: 'background 0.2s'
+                                        }}
+                                    >
+                                        <Plus size={14} />
+                                        Migrar datos locales
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => {
+                                        const newPass = prompt('Introduce tu nueva contraseña:');
+                                        if (newPass) {
+                                            changePassword(currentUser.id, newPass);
+                                            alert('Contraseña actualizada correctamente');
+                                        }
+                                    }}
+                                    style={{
+                                        width: '100%', padding: '8px 12px', borderRadius: '8px',
+                                        border: 'none', background: 'transparent', color: 'var(--text-secondary)',
+                                        fontSize: '0.8rem', textAlign: 'left', cursor: 'pointer',
+                                        display: 'flex', alignItems: 'center', gap: '8px',
+                                        transition: 'background 0.2s'
+                                    }}
+                                    onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
+                                    onMouseLeave={(e) => e.target.style.background = 'transparent'}
+                                >
+                                    <Edit2 size={14} />
+                                    Cambiar contraseña
+                                </button>
+                                <button
+                                    onClick={() => logout()}
+                                    style={{
+                                        width: '100%', padding: '8px 12px', borderRadius: '8px',
+                                        border: 'none', background: 'transparent', color: '#ef4444',
+                                        fontSize: '0.8rem', textAlign: 'left', cursor: 'pointer',
+                                        display: 'flex', alignItems: 'center', gap: '8px',
+                                        transition: 'background 0.2s'
+                                    }}
+                                    onMouseEnter={(e) => e.target.style.background = 'rgba(239, 68, 68, 0.05)'}
+                                    onMouseLeave={(e) => e.target.style.background = 'transparent'}
+                                >
+                                    <Trash2 size={14} />
+                                    Cerrar sesión
+                                </button>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
+                    {currentUser?.canViewAll && (
+                        <div style={{ marginTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '1rem' }}>
+                            <SectionHeader
+                                title="Equipo"
+                                section="team"
+                                onAdd={() => {
+                                    const name = prompt('Nombre del nuevo miembro:');
+                                    if (name) addUser(name);
+                                }}
+                            />
+                            <AnimatePresence>
+                                {expanded.team && (
+                                    <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: 'auto', opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        style={{ overflow: 'hidden' }}
+                                    >
+                                        {activeUserId && (
+                                            <div
+                                                onClick={() => setActiveUserId(null)}
+                                                style={{
+                                                    padding: '0.4rem 0.8rem',
+                                                    borderRadius: '20px',
+                                                    background: 'rgba(255,255,255,0.1)',
+                                                    fontSize: '0.7rem',
+                                                    cursor: 'pointer',
+                                                    color: 'var(--text-secondary)',
+                                                    marginBottom: '0.5rem',
+                                                    border: '1px solid var(--border-color)',
+                                                    width: 'fit-content'
+                                                }}
+                                            >
+                                                Limpiar filtro de usuario
+                                            </div>
+                                        )}
+                                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                            {users.map(user => (
+                                                <div
+                                                    key={user.id}
+                                                    title={`${user.name} (Clic para filtrar / Shift+Clic para editar)`}
+                                                    onClick={(e) => {
+                                                        if (e.shiftKey) {
+                                                            const action = prompt(`Usuario: ${user.name}\n1. Editar nombre\n2. Eliminar de equipo\n\nEscribe 1 o 2:`);
+                                                            if (action === '1') {
+                                                                const newName = prompt('Nuevo nombre:', user.name);
+                                                                if (newName) updateUser(user.id, newName);
+                                                            } else if (action === '2') {
+                                                                if (confirm(`¿Estás seguro de eliminar a ${user.name}? Se quitará de sus actividades asignadas.`)) {
+                                                                    deleteUser(user.id);
+                                                                }
+                                                            }
+                                                        } else {
+                                                            setActiveUserId(activeUserId === user.id ? null : user.id);
+                                                        }
+                                                    }}
+                                                    style={{
+                                                        width: '32px', height: '32px', borderRadius: '50%',
+                                                        background: user.color, color: '#fff', fontSize: '12px',
+                                                        fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                        border: activeUserId === user.id ? '2px solid #fff' : '2px solid var(--bg-card)',
+                                                        cursor: 'pointer',
+                                                        boxShadow: activeUserId === user.id ? `0 0 10px ${user.color}` : 'none',
+                                                        transform: activeUserId === user.id ? 'scale(1.1)' : 'scale(1)',
+                                                        transition: 'var(--transition-smooth)'
+                                                    }}
+                                                >
+                                                    {user.initials}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+                    )}
+                </div>
             </DndContext>
         </aside>
     );
