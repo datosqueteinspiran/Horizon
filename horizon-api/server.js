@@ -183,10 +183,10 @@ app.delete('/api/objectives/:id', async (req, res) => {
 
 // Tasks
 app.post('/api/tasks', async (req, res) => {
-    const { id, objective_id, content, priority, assigned_to } = req.body;
+    const { id, objective_id, content, priority, assigned_to, start_date, end_date } = req.body;
     try {
-        await query('INSERT INTO tasks (id, objective_id, content, priority, assigned_to) VALUES (?, ?, ?, ?, ?)',
-            [id, objective_id, content, priority, assigned_to]);
+        await query('INSERT INTO tasks (id, objective_id, content, priority, assigned_to, start_date, end_date) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [id, objective_id, content, priority, assigned_to, start_date, end_date]);
         res.json({ success: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -194,7 +194,7 @@ app.post('/api/tasks', async (req, res) => {
 });
 
 app.put('/api/tasks/:id', async (req, res) => {
-    const { content, status, priority, assigned_to, objective_id } = req.body;
+    const { content, status, priority, assigned_to, objective_id, start_date, end_date } = req.body;
     try {
         let sql = 'UPDATE tasks SET ';
         const params = [];
@@ -205,6 +205,8 @@ app.put('/api/tasks/:id', async (req, res) => {
         if (priority !== undefined) { updates.push('priority = ?'); params.push(priority); }
         if (assigned_to !== undefined) { updates.push('assigned_to = ?'); params.push(assigned_to); }
         if (objective_id !== undefined) { updates.push('objective_id = ?'); params.push(objective_id); }
+        if (start_date !== undefined) { updates.push('start_date = ?'); params.push(start_date); }
+        if (end_date !== undefined) { updates.push('end_date = ?'); params.push(end_date); }
 
         if (updates.length === 0) return res.json({ success: true });
 

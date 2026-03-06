@@ -12,6 +12,15 @@ const TaskCard = ({ task, isShowingMultiple, columns }) => {
     const [changingStatusTaskId, setChangingStatusTaskId] = React.useState(null);
     const [movingTaskId, setMovingTaskId] = React.useState(null);
     const [changingPriorityTaskId, setChangingPriorityTaskId] = React.useState(null);
+    const [isEditingDates, setIsEditingDates] = React.useState(false);
+    const [tempDates, setTempDates] = React.useState({ startDate: task.startDate || '', endDate: task.endDate || '' });
+
+    React.useEffect(() => {
+        setTempDates({
+            startDate: task.startDate ? task.startDate.substring(0, 10) : '',
+            endDate: task.endDate ? task.endDate.substring(0, 10) : ''
+        });
+    }, [task.startDate, task.endDate]);
     const statusRef = React.useRef(null);
     const priorityRef = React.useRef(null);
     const objectiveRef = React.useRef(null);
@@ -170,7 +179,7 @@ const TaskCard = ({ task, isShowingMultiple, columns }) => {
                             onClick={(e) => {
                                 e.stopPropagation();
                                 const newContent = prompt('Editar texto de la actividad:', task.content);
-                                if (newContent) updateTask(task.id, newContent);
+                                if (newContent) updateTask(task.id, { content: newContent });
                             }}
                         />
                         <Trash2
@@ -256,9 +265,97 @@ const TaskCard = ({ task, isShowingMultiple, columns }) => {
                                 )}
                             </AnimatePresence>
                         </span>
-                        <Clock size={14} color="var(--text-secondary)" />
+                        <Clock
+                            size={14}
+                            color={task.startDate || task.endDate ? "var(--accent-blue)" : "var(--text-secondary)"}
+                            style={{ cursor: 'pointer' }}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setIsEditingDates(!isEditingDates);
+                            }}
+                        />
                     </div>
                 </div>
+
+                <AnimatePresence>
+                    {isEditingDates && (
+                        <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            style={{
+                                overflow: 'hidden',
+                                marginBottom: '1rem',
+                                padding: '10px',
+                                background: 'rgba(255,255,255,0.03)',
+                                borderRadius: '8px',
+                                border: '1px solid var(--border-color)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '8px'
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                <div style={{ flex: 1 }}>
+                                    <label style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '2px' }}>INICIO</label>
+                                    <input
+                                        type="date"
+                                        value={tempDates.startDate ? tempDates.startDate.substring(0, 10) : ''}
+                                        onChange={(e) => setTempDates({ ...tempDates, startDate: e.target.value })}
+                                        style={{ width: '100%', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-color)', color: '#fff', fontSize: '0.75rem', padding: '4px', borderRadius: '4px' }}
+                                    />
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <label style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '2px' }}>FIN</label>
+                                    <input
+                                        type="date"
+                                        value={tempDates.endDate ? tempDates.endDate.substring(0, 10) : ''}
+                                        onChange={(e) => setTempDates({ ...tempDates, endDate: e.target.value })}
+                                        style={{ width: '100%', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-color)', color: '#fff', fontSize: '0.75rem', padding: '4px', borderRadius: '4px' }}
+                                    />
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                                <button
+                                    onClick={() => {
+                                        setIsEditingDates(false);
+                                        setTempDates({ startDate: task.startDate || '', endDate: task.endDate || '' });
+                                    }}
+                                    style={{ padding: '4px 8px', fontSize: '0.65rem', borderRadius: '4px', background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', cursor: 'pointer' }}
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        updateTask(task.id, { startDate: tempDates.startDate || null, endDate: tempDates.endDate || null });
+                                        setIsEditingDates(false);
+                                    }}
+                                    style={{ padding: '4px 8px', fontSize: '0.65rem', borderRadius: '4px', background: 'var(--accent-blue)', border: 'none', color: '#fff', fontWeight: 600, cursor: 'pointer' }}
+                                >
+                                    Guardar
+                                </button>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {(task.startDate || task.endDate) && !isEditingDates && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '0.8rem', fontSize: '0.65rem', color: 'var(--text-secondary)' }}>
+                        {task.startDate && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(59, 130, 246, 0.05)', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(59, 130, 246, 0.1)' }}>
+                                <Clock size={10} color="var(--accent-blue)" />
+                                <span>Ini: {new Date(task.startDate).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</span>
+                            </div>
+                        )}
+                        {task.endDate && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(59, 130, 246, 0.05)', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(59, 130, 246, 0.1)' }}>
+                                <Clock size={10} color="var(--accent-blue)" />
+                                <span>Fin: {new Date(task.endDate).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</span>
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 <p style={{ fontSize: '0.95rem', lineHeight: 1.5, marginBottom: '1rem', fontWeight: 500 }}>
                     {task.content}

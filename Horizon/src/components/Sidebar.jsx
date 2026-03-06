@@ -1,6 +1,7 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { usePlanner } from '../context/PlannerContext';
-import { Layout, CheckSquare, Layers, Plus, Trash2, Edit2, Users, ChevronDown, ChevronRight } from 'lucide-react';
+import { Layout, CheckSquare, Layers, Plus, Trash2, Edit2, Users, User, ChevronDown, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     DndContext,
@@ -40,22 +41,59 @@ const Sidebar = ({ currentView, setCurrentView }) => {
         profile: false
     });
     const [activeId, setActiveId] = React.useState(null);
+    const [activeObjective, setActiveObjective] = React.useState(null);
+
+    // Sidebar Resize State
+    const [sidebarWidth, setSidebarWidth] = React.useState(280);
+    const [isResizing, setIsResizing] = React.useState(false);
+
+    const startResizing = React.useCallback((mouseDownEvent) => {
+        mouseDownEvent.preventDefault();
+        setIsResizing(true);
+    }, []);
+
+    const stopResizing = React.useCallback(() => {
+        setIsResizing(false);
+    }, []);
+
+    const resize = React.useCallback((mouseMoveEvent) => {
+        if (isResizing) {
+            const newWidth = mouseMoveEvent.clientX;
+            if (newWidth >= 200 && newWidth <= 600) {
+                setSidebarWidth(newWidth);
+            }
+        }
+    }, [isResizing]);
+
+    React.useEffect(() => {
+        if (isResizing) {
+            window.addEventListener("mousemove", resize);
+            window.addEventListener("mouseup", stopResizing);
+        } else {
+            window.removeEventListener("mousemove", resize);
+            window.removeEventListener("mouseup", stopResizing);
+        }
+        return () => {
+            window.removeEventListener("mousemove", resize);
+            window.removeEventListener("mouseup", stopResizing);
+        };
+    }, [isResizing, resize, stopResizing]);
 
     const sensors = useSensors(
-        useSensor(PointerSensor, {
-            activationConstraint: {
-                distance: 8,
-            },
-        })
+        useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
     );
 
     const handleDragStart = (event) => {
-        setActiveId(event.active.id);
+        const { active } = event;
+        setActiveId(active.id);
+        const obj = activeProject?.objectives?.find(o => o.id === active.id);
+        setActiveObjective(obj);
     };
 
     const handleDragEnd = (event) => {
         const { active, over } = event;
         setActiveId(null);
+        setActiveObjective(null);
         if (over && active.id !== over.id) {
             reorderObjectives(activeProject.id, active.id, over.id);
         }
@@ -114,9 +152,9 @@ const Sidebar = ({ currentView, setCurrentView }) => {
         } = useSortable({ id: objective.id });
 
         const style = {
-            transform: isDragging ? undefined : CSS.Translate.toString(transform),
-            transition: isDragging ? 'none' : transition,
-            opacity: isDragging ? 0.3 : 1,
+            transform: CSS.Transform.toString(transform),
+            transition,
+            opacity: isDragging ? 0 : 1,
             zIndex: isDragging ? 0 : 1,
             padding: '0.75rem 1rem',
             borderRadius: '10px',
@@ -133,7 +171,7 @@ const Sidebar = ({ currentView, setCurrentView }) => {
         };
 
         return (
-            <li ref={setNodeRef} style={style} onClick={onToggle}>
+            <li ref={setNodeRef} style={style}>
                 <div
                     {...attributes}
                     {...listeners}
@@ -146,18 +184,22 @@ const Sidebar = ({ currentView, setCurrentView }) => {
                         cursor: 'grab'
                     }}
                 >
-                    <div style={{
-                        width: '16px',
-                        height: '16px',
-                        borderRadius: '4px',
-                        border: '2px solid',
-                        borderColor: isSelected ? 'var(--accent-blue)' : 'var(--border-color)',
-                        backgroundColor: isSelected ? 'var(--accent-blue)' : 'transparent',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0
-                    }}>
+                    <div
+                        onClick={(e) => { e.stopPropagation(); onToggle(); }}
+                        onPointerDown={(e) => { e.stopPropagation(); }}
+                        style={{
+                            width: '16px',
+                            height: '16px',
+                            borderRadius: '4px',
+                            border: '2px solid',
+                            borderColor: isSelected ? 'var(--accent-blue)' : 'var(--border-color)',
+                            backgroundColor: isSelected ? 'var(--accent-blue)' : 'transparent',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                            cursor: 'pointer'
+                        }}>
                         {isSelected && <CheckSquare size={12} color="#fff" />}
                     </div>
                     <span style={{
@@ -206,7 +248,7 @@ const Sidebar = ({ currentView, setCurrentView }) => {
 
     return (
         <aside className="glass" style={{
-            width: '280px',
+            width: `${sidebarWidth}px`,
             height: '100%',
             borderRight: '1px solid var(--border-color)',
             padding: '2rem 1.5rem',
@@ -214,8 +256,29 @@ const Sidebar = ({ currentView, setCurrentView }) => {
             flexDirection: 'column',
             gap: '2rem',
             overflowY: 'auto',
-            position: 'relative' // Container for overlays
+            position: 'relative', // Container for overlays
+            flexShrink: 0,
+            userSelect: isResizing ? 'none' : 'auto'
         }}>
+            {/* Resize Handle */}
+            <div
+                style={{
+                    position: 'absolute',
+                    top: 0,
+                    right: 0,
+                    bottom: 0,
+                    width: '4px',
+                    cursor: 'col-resize',
+                    zIndex: 100,
+                    backgroundColor: isResizing ? 'var(--accent-blue)' : 'transparent',
+                    transition: 'background-color 0.2s',
+                    opacity: 0.5
+                }}
+                onMouseDown={startResizing}
+                onMouseEnter={(e) => { if (!isResizing) e.target.style.backgroundColor = 'var(--accent-blue)'; }}
+                onMouseLeave={(e) => { if (!isResizing) e.target.style.backgroundColor = 'transparent'; }}
+            />
+
             <div className="logo" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
                 <div style={{
                     width: '32px',
@@ -225,11 +288,12 @@ const Sidebar = ({ currentView, setCurrentView }) => {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    flexShrink: 0
                 }} onClick={() => setCurrentView('board')}>
                     <Layout size={20} color="white" />
                 </div>
-                <span style={{ fontWeight: 700, fontSize: '1.25rem', letterSpacing: '-0.02em', cursor: 'pointer' }} onClick={() => setCurrentView('board')}>Horizon</span>
+                <span style={{ fontWeight: 700, fontSize: '1.25rem', letterSpacing: '-0.02em', cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} onClick={() => setCurrentView('board')}>Horizon</span>
             </div>
 
             {currentUser?.canViewAll && (
@@ -247,23 +311,24 @@ const Sidebar = ({ currentView, setCurrentView }) => {
                         color: currentView === 'users' ? 'var(--accent-blue)' : 'var(--text-primary)',
                         transition: 'var(--transition-smooth)',
                         marginBottom: '1rem',
-                        border: currentView === 'users' ? '1px solid var(--accent-blue)' : '1px solid transparent'
+                        border: currentView === 'users' ? '1px solid var(--accent-blue)' : '1px solid transparent',
+                        flexShrink: 0
                     }}
                 >
-                    <Users size={18} />
-                    <span style={{ fontWeight: 600 }}>Panel de Usuarios</span>
+                    <Users size={18} style={{ flexShrink: 0 }} />
+                    <span style={{ fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Panel de Usuarios</span>
                 </div>
             )}
 
             <DndContext
                 sensors={sensors}
-                collisionDetection={closestCorners}
+                collisionDetection={closestCenter}
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
                 modifiers={[restrictToVerticalAxis]}
             >
 
-                <nav style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                <nav style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', flex: 1, minWidth: 0 }}>
                     <div>
                         <SectionHeader
                             title="Proyectos"
@@ -301,7 +366,8 @@ const Sidebar = ({ currentView, setCurrentView }) => {
                                                     gap: '0.5rem',
                                                     backgroundColor: activeProject?.id === project.id ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
                                                     color: activeProject?.id === project.id ? 'var(--accent-blue)' : 'var(--text-primary)',
-                                                    transition: 'var(--transition-smooth)'
+                                                    transition: 'var(--transition-smooth)',
+                                                    minWidth: 0
                                                 }}
                                             >
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, minWidth: 0 }}>
@@ -341,10 +407,10 @@ const Sidebar = ({ currentView, setCurrentView }) => {
                     {activeProject && (
                         <div>
                             <SectionHeader
-                                title="Miembros del Proyecto"
+                                title="Miembros"
                                 section="projectMembers"
                                 onAdd={() => {
-                                    const identifier = prompt("Ingresa el correo electrónico o nombre de usuario exacto de la persona que quieres invitar:");
+                                    const identifier = prompt("Ingresa el correo electrónico o nombre de usuario:");
                                     if (!identifier) return;
 
                                     const targetUser = users.find(u =>
@@ -353,17 +419,16 @@ const Sidebar = ({ currentView, setCurrentView }) => {
                                     );
 
                                     if (!targetUser) {
-                                        alert("No se encontró ningún usuario con ese identificador. Asegúrate de escribirlo correctamente.");
+                                        alert("Usuario no encontrado.");
                                         return;
                                     }
 
                                     if ((targetUser.assignedProjects || []).includes(activeProject.id) || targetUser.canViewAll) {
-                                        alert(`${targetUser.name} ya tiene acceso a este proyecto.`);
+                                        alert(`${targetUser.name} ya tiene acceso.`);
                                         return;
                                     }
 
                                     updateUser(targetUser.id, { assignedProjects: [...(targetUser.assignedProjects || []), activeProject.id] });
-                                    alert(`${targetUser.name} ha sido añadido al proyecto.`);
                                 }}
                             />
                             <AnimatePresence>
@@ -380,13 +445,14 @@ const Sidebar = ({ currentView, setCurrentView }) => {
                                                 .map(user => (
                                                     <div
                                                         key={user.id}
-                                                        title={`${user.name}${user.canViewAll ? ' (Admin - Ver todo)' : ''}`}
+                                                        title={`${user.name}`}
                                                         style={{
                                                             width: '28px', height: '28px', borderRadius: '50%',
                                                             background: user.color, color: '#fff', fontSize: '10px',
                                                             fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center',
                                                             border: '2px solid var(--bg-card)',
-                                                            position: 'relative'
+                                                            position: 'relative',
+                                                            flexShrink: 0
                                                         }}
                                                     >
                                                         {user.initials}
@@ -394,7 +460,7 @@ const Sidebar = ({ currentView, setCurrentView }) => {
                                                             <div
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();
-                                                                    if (confirm(`¿Quitar a ${user.name} de este proyecto?`)) {
+                                                                    if (confirm(`¿Quitar a ${user.name}?`)) {
                                                                         updateUser(user.id, {
                                                                             assignedProjects: user.assignedProjects.filter(id => id !== activeProject.id)
                                                                         });
@@ -452,15 +518,18 @@ const Sidebar = ({ currentView, setCurrentView }) => {
                                                 color: activeProject && selectedObjectiveIds.length === activeProject.objectives.length ? '#fff' : 'var(--text-secondary)',
                                                 transition: 'var(--transition-smooth)',
                                                 marginBottom: '0.5rem',
-                                                borderBottom: '1px solid var(--border-color)'
+                                                borderBottom: '1px solid var(--border-color)',
+                                                minWidth: 0
                                             }}
                                         >
-                                            <Layout size={16} style={{ color: activeProject && selectedObjectiveIds.length === activeProject.objectives.length ? 'var(--accent-blue)' : 'inherit' }} />
-                                            <span style={{ fontWeight: 600 }}>Todos los objetivos</span>
+                                            <Layout size={16} style={{ flexShrink: 0, color: activeProject && selectedObjectiveIds.length === activeProject.objectives.length ? 'var(--accent-blue)' : 'inherit' }} />
+                                            <span style={{ fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Todos</span>
                                         </li>
 
                                         <SortableContext
-                                            items={activeProject.objectives.map(o => o.id)}
+                                            items={activeProject.objectives
+                                                .filter(obj => obj.id !== 'unassigned' || (obj.tasks && obj.tasks.length > 0))
+                                                .map(o => o.id)}
                                             strategy={verticalListSortingStrategy}
                                         >
                                             {activeProject.objectives
@@ -472,7 +541,7 @@ const Sidebar = ({ currentView, setCurrentView }) => {
                                                         isSelected={selectedObjectiveIds.includes(objective.id)}
                                                         onToggle={() => toggleObjective(objective.id)}
                                                         onAddTask={() => {
-                                                            const content = prompt(`Añadir actividad directamente a "${objective.title}":`);
+                                                            const content = prompt(`Actividad para "${objective.title}":`);
                                                             if (content) {
                                                                 addTask(objective.id, content);
                                                                 if (!selectedObjectiveIds.includes(objective.id)) {
@@ -481,11 +550,11 @@ const Sidebar = ({ currentView, setCurrentView }) => {
                                                             }
                                                         }}
                                                         onEdit={() => {
-                                                            const newTitle = prompt('Nuevo nombre del objetivo:', objective.title);
+                                                            const newTitle = prompt('Nuevo título:', objective.title);
                                                             if (newTitle) updateObjective(objective.id, newTitle);
                                                         }}
                                                         onDelete={() => {
-                                                            if (confirm('¿Estás seguro de que quieres borrar este objetivo y todas sus tareas?')) {
+                                                            if (confirm('¿Borrar objetivo?')) {
                                                                 deleteObjective(objective.id);
                                                             }
                                                         }}
@@ -499,46 +568,54 @@ const Sidebar = ({ currentView, setCurrentView }) => {
                     )}
                 </nav>
 
-                <DragOverlay dropAnimation={{
-                    duration: 200,
-                    easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)',
-                }}>
-                    {activeId ? (
-                        <div style={{
-                            padding: '0.75rem 1rem',
-                            borderRadius: '10px',
-                            fontSize: '0.85rem',
-                            background: 'rgba(255, 255, 255, 0.1)',
-                            backdropFilter: 'blur(15px)',
-                            border: '1px solid var(--accent-blue)',
-                            color: '#fff',
-                            boxShadow: '0 15px 35px rgba(0, 0, 0, 0.6)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.75rem',
-                            width: '232px',
-                            cursor: 'grabbing',
-                            transform: 'scale(1.02)'
-                        }}>
+                {createPortal(
+                    <DragOverlay
+                        dropAnimation={{
+                            duration: 200,
+                            easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)',
+                        }}
+                        zIndex={1000}
+                    >
+                        {activeId && activeObjective ? (
                             <div style={{
-                                width: '16px',
-                                height: '16px',
-                                borderRadius: '4px',
-                                border: '2px solid var(--accent-blue)',
-                                backgroundColor: 'var(--accent-blue)',
+                                padding: '0.75rem 1rem',
+                                borderRadius: '10px',
+                                fontSize: '0.85rem',
+                                background: 'rgba(255, 255, 255, 0.1)',
+                                backdropFilter: 'blur(15px)',
+                                border: '1px solid var(--accent-blue)',
+                                color: '#fff',
+                                boxShadow: '0 15px 35px rgba(0, 0, 0, 0.6)',
                                 display: 'flex',
                                 alignItems: 'center',
-                                justifyContent: 'center'
+                                gap: '0.75rem',
+                                width: `${sidebarWidth - 48}px`,
+                                cursor: 'grabbing',
+                                transform: 'scale(1.02)'
                             }}>
-                                <CheckSquare size={12} color="#fff" />
+                                <div style={{
+                                    width: '16px',
+                                    height: '16px',
+                                    borderRadius: '4px',
+                                    border: '2px solid var(--accent-blue)',
+                                    backgroundColor: 'var(--accent-blue)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    flexShrink: 0
+                                }}>
+                                    <CheckSquare size={12} color="#fff" />
+                                </div>
+                                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 600 }}>
+                                    {activeObjective.title}
+                                </span>
                             </div>
-                            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 600 }}>
-                                {activeProject.objectives.find(o => o.id === activeId)?.title}
-                            </span>
-                        </div>
-                    ) : null}
-                </DragOverlay>
-                <div style={{ marginTop: 'auto', paddingTop: '1.5rem', borderTop: '1px solid var(--border-color)' }}>
+                        ) : null}
+                    </DragOverlay>,
+                    document.body
+                )}
+
+                <div style={{ marginTop: 'auto', paddingTop: '1.5rem', borderTop: '1px solid var(--border-color)', flexShrink: 0 }}>
                     <div
                         onClick={() => toggleSection('profile')}
                         style={{
@@ -550,14 +627,16 @@ const Sidebar = ({ currentView, setCurrentView }) => {
                             background: 'rgba(255,255,255,0.03)',
                             cursor: 'pointer',
                             transition: 'all 0.2s',
-                            border: '1px solid rgba(255,255,255,0.05)'
+                            border: '1px solid rgba(255,255,255,0.05)',
+                            minWidth: 0
                         }}
                     >
                         <div style={{
                             width: '32px', height: '32px', borderRadius: '50%',
                             background: currentUser?.color || 'var(--accent-blue)',
                             color: '#fff', fontSize: '12px', fontWeight: 700,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            flexShrink: 0
                         }}>
                             {currentUser?.initials}
                         </div>
@@ -565,11 +644,10 @@ const Sidebar = ({ currentView, setCurrentView }) => {
                             <p style={{ fontSize: '0.85rem', fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                 {currentUser?.name}
                             </p>
-                            <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
-                                {currentUser?.username}
-                            </p>
                         </div>
-                        {expanded.profile ? <ChevronDown size={14} color="var(--text-secondary)" /> : <ChevronRight size={14} color="var(--text-secondary)" />}
+                        <div style={{ flexShrink: 0 }}>
+                            {expanded.profile ? <ChevronDown size={14} color="var(--text-secondary)" /> : <ChevronRight size={14} color="var(--text-secondary)" />}
+                        </div>
                     </div>
 
                     <AnimatePresence>
@@ -580,33 +658,14 @@ const Sidebar = ({ currentView, setCurrentView }) => {
                                 exit={{ height: 0, opacity: 0 }}
                                 style={{ overflow: 'hidden', marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '4px' }}
                             >
-                                {localStorage.getItem('horizon_data') && (
-                                    <button
-                                        onClick={async () => {
-                                            if (confirm('Se detectaron datos locales. ¿Deseas migrarlos a la base de datos de MariaDB?')) {
-                                                const res = await migrateLocalData();
-                                                alert(res.message);
-                                            }
-                                        }}
-                                        style={{
-                                            width: '100%', padding: '8px 12px', borderRadius: '8px',
-                                            border: 'none', background: 'rgba(59, 130, 246, 0.1)', color: 'var(--accent-blue)',
-                                            fontSize: '0.8rem', textAlign: 'left', cursor: 'pointer',
-                                            display: 'flex', alignItems: 'center', gap: '8px',
-                                            marginBottom: '8px',
-                                            transition: 'background 0.2s'
-                                        }}
-                                    >
-                                        <Plus size={14} />
-                                        Migrar datos locales
-                                    </button>
-                                )}
                                 <button
                                     onClick={() => {
-                                        const newPass = prompt('Introduce tu nueva contraseña:');
-                                        if (newPass) {
-                                            changePassword(currentUser.id, newPass);
-                                            alert('Contraseña actualizada correctamente');
+                                        const newName = prompt('Nombre:', currentUser.name);
+                                        if (!newName) return;
+                                        const newEmail = prompt('Correo:', currentUser.email || '');
+                                        const newUsername = prompt('Usuario:', currentUser.username || newName.toLowerCase().replace(/\s+/g, '.'));
+                                        if (newUsername !== null) {
+                                            updateUser(currentUser.id, { name: newName, email: newEmail, username: newUsername });
                                         }
                                     }}
                                     style={{
@@ -616,11 +675,28 @@ const Sidebar = ({ currentView, setCurrentView }) => {
                                         display: 'flex', alignItems: 'center', gap: '8px',
                                         transition: 'background 0.2s'
                                     }}
-                                    onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
-                                    onMouseLeave={(e) => e.target.style.background = 'transparent'}
+                                >
+                                    <User size={14} />
+                                    <span>Perfil</span>
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        const newPass = prompt('Nueva contraseña:');
+                                        if (newPass) {
+                                            changePassword(currentUser.id, newPass);
+                                            alert('Actualizada');
+                                        }
+                                    }}
+                                    style={{
+                                        width: '100%', padding: '8px 12px', borderRadius: '8px',
+                                        border: 'none', background: 'transparent', color: 'var(--text-secondary)',
+                                        fontSize: '0.8rem', textAlign: 'left', cursor: 'pointer',
+                                        display: 'flex', alignItems: 'center', gap: '8px',
+                                        transition: 'background 0.2s'
+                                    }}
                                 >
                                     <Edit2 size={14} />
-                                    Cambiar contraseña
+                                    <span>Pass</span>
                                 </button>
                                 <button
                                     onClick={() => logout()}
@@ -631,11 +707,9 @@ const Sidebar = ({ currentView, setCurrentView }) => {
                                         display: 'flex', alignItems: 'center', gap: '8px',
                                         transition: 'background 0.2s'
                                     }}
-                                    onMouseEnter={(e) => e.target.style.background = 'rgba(239, 68, 68, 0.05)'}
-                                    onMouseLeave={(e) => e.target.style.background = 'transparent'}
                                 >
                                     <Trash2 size={14} />
-                                    Cerrar sesión
+                                    <span>Salir</span>
                                 </button>
                             </motion.div>
                         )}
@@ -647,7 +721,7 @@ const Sidebar = ({ currentView, setCurrentView }) => {
                                 title="Equipo"
                                 section="team"
                                 onAdd={() => {
-                                    const name = prompt('Nombre del nuevo miembro:');
+                                    const name = prompt('Nombre:');
                                     if (name) addUser(name);
                                 }}
                             />
@@ -659,40 +733,15 @@ const Sidebar = ({ currentView, setCurrentView }) => {
                                         exit={{ height: 0, opacity: 0 }}
                                         style={{ overflow: 'hidden' }}
                                     >
-                                        {activeUserId && (
-                                            <div
-                                                onClick={() => setActiveUserId(null)}
-                                                style={{
-                                                    padding: '0.4rem 0.8rem',
-                                                    borderRadius: '20px',
-                                                    background: 'rgba(255,255,255,0.1)',
-                                                    fontSize: '0.7rem',
-                                                    cursor: 'pointer',
-                                                    color: 'var(--text-secondary)',
-                                                    marginBottom: '0.5rem',
-                                                    border: '1px solid var(--border-color)',
-                                                    width: 'fit-content'
-                                                }}
-                                            >
-                                                Limpiar filtro de usuario
-                                            </div>
-                                        )}
                                         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                                             {users.map(user => (
                                                 <div
                                                     key={user.id}
-                                                    title={`${user.name} (Clic para filtrar / Shift+Clic para editar)`}
+                                                    title={`${user.name}`}
                                                     onClick={(e) => {
                                                         if (e.shiftKey) {
-                                                            const action = prompt(`Usuario: ${user.name}\n1. Editar nombre\n2. Eliminar de equipo\n\nEscribe 1 o 2:`);
-                                                            if (action === '1') {
-                                                                const newName = prompt('Nuevo nombre:', user.name);
-                                                                if (newName) updateUser(user.id, newName);
-                                                            } else if (action === '2') {
-                                                                if (confirm(`¿Estás seguro de eliminar a ${user.name}? Se quitará de sus actividades asignadas.`)) {
-                                                                    deleteUser(user.id);
-                                                                }
-                                                            }
+                                                            const newName = prompt('Nombre:', user.name);
+                                                            if (newName) updateUser(user.id, newName);
                                                         } else {
                                                             setActiveUserId(activeUserId === user.id ? null : user.id);
                                                         }
@@ -703,8 +752,7 @@ const Sidebar = ({ currentView, setCurrentView }) => {
                                                         fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center',
                                                         border: activeUserId === user.id ? '2px solid #fff' : '2px solid var(--bg-card)',
                                                         cursor: 'pointer',
-                                                        boxShadow: activeUserId === user.id ? `0 0 10px ${user.color}` : 'none',
-                                                        transform: activeUserId === user.id ? 'scale(1.1)' : 'scale(1)',
+                                                        flexShrink: 0,
                                                         transition: 'var(--transition-smooth)'
                                                     }}
                                                 >

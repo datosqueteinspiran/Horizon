@@ -17,6 +17,7 @@ import {
     verticalListSortingStrategy
 } from '@dnd-kit/sortable';
 import TaskCard from './TaskCard';
+import GanttChart from './GanttChart';
 
 const DroppableColumn = ({ id, children }) => {
     const { setNodeRef } = useDroppable({ id });
@@ -249,182 +250,203 @@ const Board = () => {
                             >
                                 Equipo
                             </button>
+                            <button
+                                onClick={() => setGroupBy('gantt')}
+                                style={{
+                                    padding: '6px 12px',
+                                    borderRadius: '7px',
+                                    border: 'none',
+                                    background: groupBy === 'gantt' ? 'var(--accent-blue)' : 'transparent',
+                                    color: groupBy === 'gantt' ? '#fff' : 'var(--text-secondary)',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s'
+                                }}
+                            >
+                                Cronograma
+                            </button>
                         </div>
                     </div>
                 </div>
 
-                <div style={{
-                    flex: 1,
-                    padding: '2rem',
-                    display: 'flex',
-                    gap: '2rem',
-                    overflowX: 'auto',
-                    overflowY: 'hidden',
-                    alignItems: 'stretch',
-                    minHeight: 0 // Constrain height for columns
-                }}>
-                    {columns.map(column => {
-                        const columnTasks = tasks.filter(t => {
-                            if (groupBy === 'status') return t.status === column;
-                            if (groupBy === 'priority') return t.priority === column;
-                            if (groupBy === 'objective') return t.objectiveId === column;
-                            return (t.assignedTo || 'unassigned-user') === column;
-                        });
+                {groupBy === 'gantt' ? (
+                    <GanttChart tasks={tasks} />
+                ) : (
+                    <div style={{
+                        flex: 1,
+                        padding: '2rem',
+                        display: 'flex',
+                        gap: '2rem',
+                        overflowX: 'auto',
+                        overflowY: 'hidden',
+                        alignItems: 'stretch',
+                        minHeight: 0 // Constrain height for columns
+                    }}>
+                        {columns.map(column => {
+                            const columnTasks = tasks.filter(t => {
 
-                        const columnTitle = groupBy === 'status'
-                            ? (column === 'Doing' ? 'EN PROCESO' : column === 'To Do' ? 'PENDIENTES' : 'HECHO')
-                            : groupBy === 'priority'
-                                ? column.toUpperCase()
-                                : groupBy === 'objective'
-                                    ? (activeProject.objectives.find(o => o.id === column)?.title || 'Sin Objetivo').toUpperCase()
-                                    : (users.find(u => u.id === column)?.name || 'Sin asignar').toUpperCase();
+                                if (groupBy === 'status') return t.status === column;
+                                if (groupBy === 'priority') return t.priority === column;
+                                if (groupBy === 'objective') return t.objectiveId === column;
+                                return (t.assignedTo || 'unassigned-user') === column;
+                            });
 
-                        return (
-                            <div key={column} style={{
-                                flex: '0 0 350px',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                gap: '1.5rem',
-                                height: '100%',
-                                minHeight: 0 // Crucial for nested flex scrolling
-                            }}>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 0.5rem' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                        <h3 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                            {columnTitle}
-                                        </h3>
-                                        <span style={{
-                                            fontSize: '0.7rem',
-                                            background: 'rgba(255,255,255,0.05)',
-                                            padding: '2px 8px',
-                                            borderRadius: '100px',
-                                            color: 'var(--text-secondary)',
-                                            fontWeight: 600
-                                        }}>
-                                            {columnTasks.length}
-                                        </span>
-                                    </div>
-                                </div>
+                            const columnTitle = groupBy === 'status'
+                                ? (column === 'Doing' ? 'EN PROCESO' : column === 'To Do' ? 'PENDIENTES' : 'HECHO')
+                                : groupBy === 'priority'
+                                    ? column.toUpperCase()
+                                    : groupBy === 'objective'
+                                        ? (activeProject.objectives.find(o => o.id === column)?.title || 'Sin Objetivo').toUpperCase()
+                                        : (users.find(u => u.id === column)?.name || 'Sin asignar').toUpperCase();
 
-                                <SortableContext
-                                    id={column}
-                                    items={columnTasks.map(t => t.id)}
-                                    strategy={verticalListSortingStrategy}
-                                >
-                                    <DroppableColumn id={column}>
-                                        <AnimatePresence mode="popLayout">
-                                            {columnTasks.map(task => (
-                                                <TaskCard
-                                                    key={task.id}
-                                                    task={task}
-                                                    columns={['To Do', 'Doing', 'Done']}
-                                                    isShowingMultiple={selectedObjectiveIds.length > 1}
-                                                />
-                                            ))}
-                                        </AnimatePresence>
-
-                                        <div style={{ position: 'relative', marginTop: 'auto' }}>
-                                            <button
-                                                onClick={() => {
-                                                    if (groupBy === 'objective') {
-                                                        const content = prompt(`Nueva actividad en "${columnTitle.toLowerCase()}":`);
-                                                        if (content) addTask(column, content);
-                                                    } else {
-                                                        setAddingToGroup(addingToGroup === column ? null : column);
-                                                    }
-                                                }}
-                                                style={{
-                                                    width: '100%',
-                                                    padding: '0.75rem',
-                                                    borderRadius: '12px',
-                                                    border: '1px dashed var(--border-color)',
-                                                    background: 'transparent',
-                                                    color: 'var(--text-secondary)',
-                                                    cursor: 'pointer',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    gap: '0.5rem',
-                                                    transition: 'var(--transition-smooth)'
-                                                }}
-                                            >
-                                                <Plus size={18} />
-                                                Añadir Actividad
-                                            </button>
-
-                                            <AnimatePresence>
-                                                {addingToGroup === column && (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, scale: 0.9, y: 10 }}
-                                                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                                                        exit={{ opacity: 0, scale: 0.9, y: 10 }}
-                                                        style={{
-                                                            position: 'absolute',
-                                                            bottom: '100%',
-                                                            left: 0,
-                                                            width: '100%',
-                                                            marginBottom: '10px',
-                                                            background: 'var(--bg-card)',
-                                                            border: '1px solid var(--border-color)',
-                                                            borderRadius: '12px',
-                                                            padding: '0.5rem',
-                                                            zIndex: 100,
-                                                            boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
-                                                            display: 'flex',
-                                                            flexDirection: 'column',
-                                                            gap: '2px'
-                                                        }}
-                                                    >
-                                                        <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '0.4rem', padding: '4px 8px' }}>
-                                                            Seleccionar objetivo:
-                                                        </p>
-                                                        {activeProject.objectives
-                                                            .filter(o => selectedObjectiveIds.includes(o.id) || o.id === `unassigned-${activeProject.id}`)
-                                                            .map(obj => (
-                                                                <div
-                                                                    key={obj.id}
-                                                                    onClick={() => {
-                                                                        const content = prompt(`Nueva actividad en "${obj.title}":`);
-                                                                        if (content) {
-                                                                            if (groupBy === 'status') {
-                                                                                addTask(obj.id, content, 'Media', null);
-                                                                            } else if (groupBy === 'priority') {
-                                                                                addTask(obj.id, content, column, null);
-                                                                            } else if (groupBy === 'user') {
-                                                                                const targetUserId = column === 'unassigned-user' ? null : column;
-                                                                                addTask(obj.id, content, 'Media', targetUserId);
-                                                                            }
-                                                                        }
-                                                                        setAddingToGroup(null);
-                                                                    }}
-                                                                    style={{
-                                                                        padding: '8px 10px',
-                                                                        fontSize: '0.8rem',
-                                                                        borderRadius: '6px',
-                                                                        cursor: 'pointer',
-                                                                        color: 'var(--text-primary)',
-                                                                        display: 'flex',
-                                                                        alignItems: 'center',
-                                                                        gap: '8px',
-                                                                        transition: 'background 0.2s'
-                                                                    }}
-                                                                    onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
-                                                                    onMouseLeave={(e) => e.target.style.background = 'transparent'}
-                                                                >
-                                                                    <Layers size={14} color="var(--accent-purple)" />
-                                                                    {obj.title}
-                                                                </div>
-                                                            ))}
-                                                    </motion.div>
-                                                )}
-                                            </AnimatePresence>
+                            return (
+                                <div key={column} style={{
+                                    flex: '0 0 350px',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '1.5rem',
+                                    height: '100%',
+                                    minHeight: 0 // Crucial for nested flex scrolling
+                                }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 0.5rem' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                            <h3 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                                {columnTitle}
+                                            </h3>
+                                            <span style={{
+                                                fontSize: '0.7rem',
+                                                background: 'rgba(255,255,255,0.05)',
+                                                padding: '2px 8px',
+                                                borderRadius: '100px',
+                                                color: 'var(--text-secondary)',
+                                                fontWeight: 600
+                                            }}>
+                                                {columnTasks.length}
+                                            </span>
                                         </div>
-                                    </DroppableColumn>
-                                </SortableContext>
-                            </div>
-                        );
-                    })}
-                </div>
+                                    </div>
+
+                                    <SortableContext
+                                        id={column}
+                                        items={columnTasks.map(t => t.id)}
+                                        strategy={verticalListSortingStrategy}
+                                    >
+                                        <DroppableColumn id={column}>
+                                            <AnimatePresence mode="popLayout">
+                                                {columnTasks.map(task => (
+                                                    <TaskCard
+                                                        key={task.id}
+                                                        task={task}
+                                                        columns={['To Do', 'Doing', 'Done']}
+                                                        isShowingMultiple={selectedObjectiveIds.length > 1}
+                                                    />
+                                                ))}
+                                            </AnimatePresence>
+
+                                            <div style={{ position: 'relative', marginTop: 'auto' }}>
+                                                <button
+                                                    onClick={() => {
+                                                        if (groupBy === 'objective') {
+                                                            const content = prompt(`Nueva actividad en "${columnTitle.toLowerCase()}":`);
+                                                            if (content) addTask(column, content);
+                                                        } else {
+                                                            setAddingToGroup(addingToGroup === column ? null : column);
+                                                        }
+                                                    }}
+                                                    style={{
+                                                        width: '100%',
+                                                        padding: '0.75rem',
+                                                        borderRadius: '12px',
+                                                        border: '1px dashed var(--border-color)',
+                                                        background: 'transparent',
+                                                        color: 'var(--text-secondary)',
+                                                        cursor: 'pointer',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        gap: '0.5rem',
+                                                        transition: 'var(--transition-smooth)'
+                                                    }}
+                                                >
+                                                    <Plus size={18} />
+                                                    Añadir Actividad
+                                                </button>
+
+                                                <AnimatePresence>
+                                                    {addingToGroup === column && (
+                                                        <motion.div
+                                                            initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                                                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                            exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                                                            style={{
+                                                                position: 'absolute',
+                                                                bottom: '100%',
+                                                                left: 0,
+                                                                width: '100%',
+                                                                marginBottom: '10px',
+                                                                background: 'var(--bg-card)',
+                                                                border: '1px solid var(--border-color)',
+                                                                borderRadius: '12px',
+                                                                padding: '0.5rem',
+                                                                zIndex: 100,
+                                                                boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+                                                                display: 'flex',
+                                                                flexDirection: 'column',
+                                                                gap: '2px'
+                                                            }}
+                                                        >
+                                                            <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '0.4rem', padding: '4px 8px' }}>
+                                                                Seleccionar objetivo:
+                                                            </p>
+                                                            {activeProject.objectives
+                                                                .filter(o => selectedObjectiveIds.includes(o.id) || o.id === `unassigned-${activeProject.id}`)
+                                                                .map(obj => (
+                                                                    <div
+                                                                        key={obj.id}
+                                                                        onClick={() => {
+                                                                            const content = prompt(`Nueva actividad en "${obj.title}":`);
+                                                                            if (content) {
+                                                                                if (groupBy === 'status') {
+                                                                                    addTask(obj.id, content, 'Media', null);
+                                                                                } else if (groupBy === 'priority') {
+                                                                                    addTask(obj.id, content, column, null);
+                                                                                } else if (groupBy === 'user') {
+                                                                                    const targetUserId = column === 'unassigned-user' ? null : column;
+                                                                                    addTask(obj.id, content, 'Media', targetUserId);
+                                                                                }
+                                                                            }
+                                                                            setAddingToGroup(null);
+                                                                        }}
+                                                                        style={{
+                                                                            padding: '8px 10px',
+                                                                            fontSize: '0.8rem',
+                                                                            borderRadius: '6px',
+                                                                            cursor: 'pointer',
+                                                                            color: 'var(--text-primary)',
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            gap: '8px',
+                                                                            transition: 'background 0.2s'
+                                                                        }}
+                                                                        onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
+                                                                        onMouseLeave={(e) => e.target.style.background = 'transparent'}
+                                                                    >
+                                                                        <Layers size={14} color="var(--accent-purple)" />
+                                                                        {obj.title}
+                                                                    </div>
+                                                                ))}
+                                                        </motion.div>
+                                                    )}
+                                                </AnimatePresence>
+                                            </div>
+                                        </DroppableColumn>
+                                    </SortableContext>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
             </div>
 
             <DragOverlay dropAnimation={dropAnimation}>

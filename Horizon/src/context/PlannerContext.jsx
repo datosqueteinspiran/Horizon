@@ -75,7 +75,22 @@ export const PlannerProvider = ({ children }) => {
         const projectsData = await projectsRes.json();
         const usersData = await usersRes.json();
 
-        setProjects(projectsData);
+        const mapTask = (t) => ({
+          ...t,
+          assignedTo: t.assigned_to,
+          startDate: t.start_date,
+          endDate: t.end_date
+        });
+
+        const projectsWithMappedTasks = projectsData.map(p => ({
+          ...p,
+          objectives: (p.objectives || []).map(o => ({
+            ...o,
+            tasks: (o.tasks || []).map(mapTask)
+          }))
+        }));
+
+        setProjects(projectsWithMappedTasks);
         setUsers(usersData.map(u => ({
           ...u,
           canEdit: !!u.can_edit,
@@ -397,9 +412,9 @@ export const PlannerProvider = ({ children }) => {
     }
   };
 
-  const addTask = async (objectiveId, content, priority = 'Media', assignedTo = null) => {
+  const addTask = async (objectiveId, content, priority = 'Media', assignedTo = null, startDate = null, endDate = null) => {
     if (!activeProjectId) return;
-    const newTask = { id: Date.now().toString(), content, status: 'To Do', priority, assignedTo };
+    const newTask = { id: Date.now().toString(), content, status: 'To Do', priority, assignedTo, startDate, endDate };
 
     try {
       await fetch(`${API_BASE_URL}/tasks`, {
@@ -410,7 +425,9 @@ export const PlannerProvider = ({ children }) => {
           objective_id: objectiveId,
           content,
           priority,
-          assigned_to: assignedTo
+          assigned_to: assignedTo,
+          start_date: startDate,
+          end_date: endDate
         })
       });
 
@@ -471,18 +488,23 @@ export const PlannerProvider = ({ children }) => {
     }
   };
 
-  const updateTask = async (taskId, newContent) => {
+  const updateTask = async (taskId, updates) => {
     try {
+      const apiUpdates = { ...updates };
+      if (updates.startDate !== undefined) { apiUpdates.start_date = updates.startDate; delete apiUpdates.startDate; }
+      if (updates.endDate !== undefined) { apiUpdates.end_date = updates.endDate; delete apiUpdates.endDate; }
+      if (updates.assignedTo !== undefined) { apiUpdates.assigned_to = updates.assignedTo; delete apiUpdates.assignedTo; }
+
       await fetch(`${API_BASE_URL}/tasks/${taskId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: newContent })
+        body: JSON.stringify(apiUpdates)
       });
       setProjects(prev => prev.map(p => ({
         ...p,
         objectives: p.objectives.map(o => ({
           ...o,
-          tasks: o.tasks.map(t => t.id === taskId ? { ...t, content: newContent } : t)
+          tasks: o.tasks.map(t => t.id === taskId ? { ...t, ...updates } : t)
         }))
       })));
     } catch (err) {
@@ -712,7 +734,9 @@ export const PlannerProvider = ({ children }) => {
                 objective_id: objective.id,
                 content: task.content,
                 priority: task.priority || 'Media',
-                assigned_to: task.assignedTo || null
+                assigned_to: task.assignedTo || null,
+                start_date: task.startDate || null,
+                end_date: task.endDate || null
               })
             });
           }
